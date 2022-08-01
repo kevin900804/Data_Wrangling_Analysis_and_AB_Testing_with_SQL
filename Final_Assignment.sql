@@ -103,53 +103,75 @@ FROM
 -- (You may include the day the test started)
 
 SELECT
-  item_id,
-  MAX(
-    CASE
-      WHEN date(event_time) - date(test_start_date) <= 30
-      AND date(event_time) >= date(test_start_date) THEN 1
-      ELSE 0
-    END
-  ) AS view_binary,
-  SUM(
-    CASE
-      WHEN date(event_time) - date(test_start_date) <= 30
-      AND date(event_time) >= date(test_start_date) THEN 1
-      ELSE 0
-    END
-  ) AS total_views,
-  SUM(
-    CASE
-      WHEN date(event_time) - date(test_start_date) <= 30
-      AND date(event_time) >= date(test_start_date) THEN (1/30.0)
-      ELSE 0
-    END
-  ) AS avg_views
+  COUNT(item_id) AS totalnum_items,
+  SUM(view_binary) AS items_viewed_30d
 FROM
   (
     SELECT
-      final_assignments.item_id,
-      test_start_date,
-      event_time,
-      test_assignment
+      item_id,
+      MAX(
+        CASE
+          WHEN date(event_time) - date(test_start_date) <= 30
+          AND date(event_time) >= date(test_start_date) THEN 1
+          ELSE 0
+        END
+      ) AS view_binary,
+      SUM(
+        CASE
+          WHEN date(event_time) - date(test_start_date) <= 30
+          AND date(event_time) >= date(test_start_date) THEN 1
+          ELSE 0
+        END
+      ) AS total_views,
+      SUM(
+        CASE
+          WHEN date(event_time) - date(test_start_date) <= 30
+          AND date(event_time) >= date(test_start_date) THEN (1 / 30.0)
+          ELSE 0
+        END
+      ) AS avg_views
     FROM
-      dsv1069.final_assignments
-      LEFT JOIN (
+      (
         SELECT
-          CAST(parameter_value AS FLOAT) AS item_id,
-          event_time
+          final_assignments.item_id,
+          test_start_date,
+          event_time,
+          test_assignment
         FROM
-          dsv1069.events
+          dsv1069.final_assignments
+          LEFT JOIN (
+            SELECT
+              CAST(parameter_value AS FLOAT) AS item_id,
+              event_time
+            FROM
+              dsv1069.events
+            WHERE
+              event_name = 'view_item'
+              AND parameter_name = 'item_id'
+          ) AS viewitems ON final_assignments.item_id = viewitems.item_id
         WHERE
-          event_name = 'view_item'
-          AND parameter_name = 'item_id'
-      ) AS viewitems ON final_assignments.item_id = viewitems.item_id
-    WHERE
-      test_number = 'item_test_2'
-  ) AS item_test_2
-GROUP BY
-  item_id,
-  test_assignment
-HAVING
-  test_assignment != '0'
+          test_number = 'item_test_2'
+      ) AS item_test_2
+    GROUP BY
+      item_id,
+      test_assignment
+    HAVING
+      test_assignment != '0'
+  ) AS result
   
+
+-- 5.
+-- Use the https://thumbtack.github.io/abba/demo/abba.html 
+-- to compute the lifts in metrics and the p-values for the binary metrics ( 30 day order binary and 30 day view binary) using a interval 95% confidence.
+
+-- 30 day order binary:
+-- Lable: control    Number of successes:  341  Number of trials:  1130
+-- Lable: treatment  Number of successes:  319  Number of trials:  1068
+-- Improvement lift: -1%  p-value:  0.88
+-- There is not a significant differenc between control and treatment.
+
+-- 30 day view binary:
+-- Lable: control    Number of successes:  918  Number of trials:  1130
+-- Lable: treatment  Number of successes:  890  Number of trials:  1068
+-- Improvement lift: 2.6%  p-value:  0.20
+-- There is not a significant differenc between control and treatment.
