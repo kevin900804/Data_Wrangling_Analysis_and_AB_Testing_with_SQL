@@ -67,12 +67,14 @@ ORDER BY
 -- (You may include the day the test started)
 
 SELECT
+  test_assignment,
   COUNT(item_id) AS totalnum_items,
   SUM(order_binary) AS items_ordered_30d
 FROM
   (
     SELECT
       item_id,
+      test_assignment,
       MAX(
         CASE
           WHEN date(created_at) - date(test_start_date) <= 30
@@ -85,17 +87,20 @@ FROM
         SELECT
           final_assignments.item_id,
           test_start_date,
-          created_at
+          created_at,
+          test_assignment
         FROM
           dsv1069.final_assignments
           LEFT JOIN dsv1069.orders ON final_assignments.item_id = orders.item_id
         WHERE
           test_number = 'item_test_2'
-          AND test_assignment = '1'
       ) AS item_test_2
     GROUP BY
-      item_id
+      item_id,
+      test_assignment
   ) AS result
+GROUP BY
+  test_assignment
 
 
 -- 4.
@@ -103,12 +108,17 @@ FROM
 -- (You may include the day the test started)
 
 SELECT
+  test_assignment,
   COUNT(item_id) AS totalnum_items,
-  SUM(view_binary) AS items_viewed_30d
+  SUM(view_binary) AS items_viewed_30d,
+  CAST(100*SUM(view_binary)/COUNT(item_id) AS FLOAT) AS viewed_percent,
+  SUM(total_views),
+  SUM(total_views)/COUNT(item_id) AS average_views_per_item
 FROM
   (
     SELECT
       item_id,
+      test_assignment,
       MAX(
         CASE
           WHEN date(event_time) - date(test_start_date) <= 30
@@ -122,14 +132,7 @@ FROM
           AND date(event_time) >= date(test_start_date) THEN 1
           ELSE 0
         END
-      ) AS total_views,
-      SUM(
-        CASE
-          WHEN date(event_time) - date(test_start_date) <= 30
-          AND date(event_time) >= date(test_start_date) THEN (1 / 30.0)
-          ELSE 0
-        END
-      ) AS avg_views
+      ) AS total_views
     FROM
       (
         SELECT
@@ -155,9 +158,9 @@ FROM
     GROUP BY
       item_id,
       test_assignment
-    HAVING
-      test_assignment != '0'
   ) AS result
+GROUP BY
+test_assignment
   
 
 -- 5.
